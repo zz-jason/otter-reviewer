@@ -11,6 +11,38 @@ The important identity detail is intentional: comments are posted with a GitHub 
 - `bin/otter-reviewer.js` resolves the PR diff, calls `codex exec` with the runner's `CODEX_HOME/config.toml`, validates Codex JSON output, filters comments to valid RIGHT-side diff lines, and posts a pull request review.
 - GitHub App credentials are supplied as secrets so the visible GitHub author is the App, not the workflow bot.
 
+## Review Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as Developer
+    participant Target as Target Repo
+    participant Actions as GitHub Actions
+    participant Runner as Self-hosted Runner
+    participant Workflow as otter-reviewer Workflow
+    participant CLI as otter-reviewer CLI
+    participant App as GitHub App API
+    participant Codex as Codex CLI
+    participant PR as Pull Request
+
+    Dev->>Target: Open, update, or manually dispatch PR review
+    Target->>Actions: Run .github/workflows/otter-review.yml
+    Actions->>Runner: Schedule job with self-hosted + otter-reviewer labels
+    Runner->>Workflow: Checkout PR head and run reusable workflow/action
+    Workflow->>CLI: node bin/otter-reviewer.js review
+    CLI->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
+    CLI->>App: Exchange JWT for installation access token
+    App-->>CLI: Installation token for target repository
+    CLI->>Target: Fetch PR metadata and base branch
+    CLI->>CLI: Compute merge-base and unified PR diff
+    CLI->>Codex: codex exec using runner CODEX_HOME/config.toml
+    Codex-->>CLI: JSON summary and candidate inline comments
+    CLI->>CLI: Validate schema and filter to RIGHT-side diff lines
+    CLI->>PR: POST pull request review with inline comments
+    PR-->>Dev: Show comments authored by Otter Reviewer app
+```
+
 ## Target Repository Setup
 
 1. Create a GitHub App named `Otter Reviewer`.
