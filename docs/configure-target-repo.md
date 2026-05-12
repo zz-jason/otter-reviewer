@@ -47,7 +47,7 @@ The remote script commits `.github/workflows/otter-review.yml` to the repository
 ./scripts/configure-target-repo.sh owner/repo --no-secrets
 ```
 
-Use `--action-ref v1.0.2` or a commit SHA when a repository needs stricter action pinning.
+Use `--action-ref v1.0.3` or a commit SHA when a repository needs stricter action pinning.
 
 ## 4. Start a runner
 
