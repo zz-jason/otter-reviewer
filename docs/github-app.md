@@ -2,6 +2,8 @@
 
 Create one GitHub App and install it on every repository that should use Otter Reviewer.
 
+`docs/github-app-manifest.json` contains the app manifest values for this setup. GitHub still requires completing the app creation flow in the browser, but the manifest captures the app name, disabled webhook, and repository permissions.
+
 ## App identity
 
 - App name: `Otter Reviewer`

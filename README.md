@@ -22,7 +22,7 @@ The important identity detail is intentional: comments are posted with a GitHub 
 4. Copy `templates/otter-review.yml` to `.github/workflows/otter-review.yml` in the target repository.
 5. Start a self-hosted runner with the `otter-reviewer` label.
 
-See `docs/github-app.md` for app creation details and `docs/configure-target-repo.md` for the full repository setup.
+See `docs/github-app.md` and `docs/github-app-manifest.json` for app creation details, and `docs/configure-target-repo.md` for the full repository setup.
 
 For a remote repository, the workflow install can be one command:
 

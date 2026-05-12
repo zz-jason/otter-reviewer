@@ -1,0 +1,14 @@
+{
+  "name": "Otter Reviewer",
+  "url": "https://github.com/zz-jason/otter-reviewer",
+  "hook_attributes": {
+    "url": "https://github.com/zz-jason/otter-reviewer",
+    "active": false
+  },
+  "public": false,
+  "default_permissions": {
+    "contents": "read",
+    "pull_requests": "write"
+  },
+  "default_events": []
+}
