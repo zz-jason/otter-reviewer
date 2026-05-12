@@ -469,6 +469,9 @@ async function main() {
 if (require.main === module) {
   main().catch((error) => {
     console.error(error.stack || error.message || String(error));
+    if (error.cause) {
+      console.error("Caused by:", error.cause.stack || error.cause.message || String(error.cause));
+    }
     process.exit(1);
   });
 }

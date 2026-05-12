@@ -12,11 +12,13 @@ services:
       RUNNER_NAME: ${RUNNER_NAME:-otter-reviewer-docker}
       RUNNER_LABELS: ${RUNNER_LABELS:-otter-reviewer,docker}
       RUNNER_EPHEMERAL: ${RUNNER_EPHEMERAL:-false}
+      RUNNER_CACHE_DIR: /home/runner/.cache/otter-reviewer/actions-runner
       CODEX_HOME: /home/runner/.codex
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ${CODEX_CONFIG:-${HOME}/.codex/config.toml}:/home/runner/.codex/config.toml:ro
+      - ${RUNNER_CACHE_DIR:-${HOME}/.cache/otter-reviewer/actions-runner}:/home/runner/.cache/otter-reviewer/actions-runner
       - otter-runner-work:/home/runner/_work
 
 volumes:

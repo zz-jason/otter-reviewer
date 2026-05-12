@@ -8,6 +8,7 @@ RUNNER_LABELS="${RUNNER_LABELS:-otter-reviewer,host}"
 RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-false}"
 RUNNER_ROOT="${RUNNER_ROOT:-${HOME}/actions-runner-${GITHUB_REPOSITORY//\//-}-otter}"
 RUNNER_WORKDIR="${RUNNER_WORKDIR:-${RUNNER_ROOT}/_work}"
+RUNNER_CACHE_DIR="${RUNNER_CACHE_DIR:-${HOME}/.cache/otter-reviewer/actions-runner}"
 CODEX_HOME="${CODEX_HOME:-${HOME}/.codex}"
 
 need() {
@@ -39,12 +40,21 @@ if [[ ! -x ./config.sh ]]; then
 
   release_json="$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest)"
   asset_url="$(jq -r --arg arch "${runner_arch}" '.assets[] | select(.name | test("linux-" + $arch + "-.*\\.tar\\.gz$")) | .browser_download_url' <<<"${release_json}" | head -n 1)"
+  asset_name="$(basename "${asset_url}")"
   if [[ -z "${asset_url}" || "${asset_url}" == "null" ]]; then
     echo "Could not resolve latest actions runner asset for linux-${runner_arch}" >&2
     exit 2
   fi
 
-  curl -fsSL "${asset_url}" -o actions-runner.tar.gz
+  mkdir -p "${RUNNER_CACHE_DIR}"
+  cached_asset="${RUNNER_CACHE_DIR}/${asset_name}"
+  if [[ ! -s "${cached_asset}" ]]; then
+    tmp_asset="${cached_asset}.tmp.$$"
+    curl -fsSL "${asset_url}" -o "${tmp_asset}"
+    mv "${tmp_asset}" "${cached_asset}"
+  fi
+
+  cp "${cached_asset}" actions-runner.tar.gz
   tar -xzf actions-runner.tar.gz
   rm -f actions-runner.tar.gz
 fi

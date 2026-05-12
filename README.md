@@ -61,6 +61,7 @@ Host runner:
 export GITHUB_REPOSITORY=owner/repo
 export GITHUB_PAT="$(gh auth token)"
 export CODEX_HOME="$HOME/.codex"
+export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"
 export RUNNER_EPHEMERAL=true
 
 ./runner/start-host-runner.sh
@@ -73,6 +74,7 @@ export GITHUB_REPOSITORY=owner/repo
 export GITHUB_PAT="$(gh auth token)"
 export CODEX_CONFIG="$HOME/.codex/config.toml"
 export CODEX_VERSION="$(codex --version | awk '{print $2}')"
+export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"
 export RUNNER_EPHEMERAL=true
 
 docker compose -f runner/docker-compose.yml up --build
