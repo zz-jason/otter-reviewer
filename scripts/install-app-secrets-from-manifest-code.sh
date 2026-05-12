@@ -60,5 +60,6 @@ echo "Installed Otter Reviewer app secrets in ${repo}"
 echo "App ID: ${app_id}"
 if [[ -n "${app_slug}" ]]; then
   echo "App slug: ${app_slug}"
+  echo "Install URL: https://github.com/apps/${app_slug}/installations/new"
 fi
 echo "Private key saved at ${private_key_output}"
