@@ -28,7 +28,7 @@ No account permissions are required.
 
 ## Secrets
 
-Add these as repository or organization secrets:
+Add these as repository secrets or selected-repository organization secrets:
 
 - `OTTER_REVIEWER_APP_ID`: the numeric app ID from the app settings page
 - `OTTER_REVIEWER_PRIVATE_KEY`: a generated private key PEM for the app

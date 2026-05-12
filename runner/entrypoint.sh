@@ -6,7 +6,7 @@ RUNNER_WORKDIR="${RUNNER_WORKDIR:-/home/runner/_work}"
 RUNNER_URL="${RUNNER_URL:-https://github.com/${GITHUB_REPOSITORY:-}}"
 RUNNER_NAME="${RUNNER_NAME:-otter-reviewer-$(hostname)}"
 RUNNER_LABELS="${RUNNER_LABELS:-otter-reviewer,docker}"
-RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-false}"
+RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-true}"
 RUNNER_CACHE_DIR="${RUNNER_CACHE_DIR:-/home/runner/.cache/otter-reviewer/actions-runner}"
 CODEX_HOME="${CODEX_HOME:-/home/runner/.codex}"
 
@@ -15,10 +15,12 @@ if [[ -z "${GITHUB_REPOSITORY:-}" && -z "${RUNNER_URL:-}" ]]; then
   exit 2
 fi
 
-if [[ ! -f "${CODEX_HOME}/config.toml" ]]; then
-  echo "Codex config not found at ${CODEX_HOME}/config.toml" >&2
-  echo "Mount the host ~/.codex/config.toml into the container." >&2
-  exit 2
+if [[ "${REQUIRE_CODEX:-true}" == "true" ]]; then
+  if [[ ! -f "${CODEX_HOME}/config.toml" ]]; then
+    echo "Codex config not found at ${CODEX_HOME}/config.toml" >&2
+    echo "Mount the host ~/.codex/config.toml into the container." >&2
+    exit 2
+  fi
 fi
 
 if [[ ! -d "${RUNNER_HOME}" || ! -x "${RUNNER_HOME}/config.sh" ]]; then
@@ -120,4 +122,4 @@ fi
 
 ./config.sh "${config_args[@]}"
 
-exec ./run.sh
+exec env -u GITHUB_PAT -u RUNNER_TOKEN ./run.sh

@@ -31,7 +31,7 @@ pull_request event
   -> POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews
 ```
 
-The GitHub App named `Otter Reviewer` needs `Contents: read`, `Pull requests: read and write`, and the automatic `Metadata: read` permission. The workflow passes `OTTER_REVIEWER_APP_ID` and `OTTER_REVIEWER_PRIVATE_KEY` as secrets. The CLI signs a short-lived RS256 JWT, resolves the app installation for the current repository unless `OTTER_REVIEWER_INSTALLATION_ID` is set, creates an installation token, and uses that token for PR metadata and review creation. This is the identity mechanism that changes GitHub attribution from `github-actions[bot]` to the app.
+The GitHub App named `Otter Reviewer` needs `Contents: read`, `Pull requests: read and write`, and the automatic `Metadata: read` permission. The workflow passes `OTTER_REVIEWER_APP_ID` and `OTTER_REVIEWER_PRIVATE_KEY` as secrets. The action first prepares the review without the App private key in the agent step, then signs a short-lived RS256 JWT, resolves the app installation for the current repository unless `OTTER_REVIEWER_INSTALLATION_ID` is set, creates an installation token, and uses that token for review creation. This is the identity mechanism that changes GitHub attribution from `github-actions[bot]` to the app.
 
 Agent output is constrained by the `zz-jason/otter-reviewer-action` JSON schema, which requires a summary plus an array of `{path, line, body, severity}` comments. The action still treats model output as untrusted: it extracts JSON defensively, normalizes comment fields, deduplicates comments, truncates oversized bodies, and drops any comment whose path and line do not map to a RIGHT-side line in the PR diff. This prevents GitHub API failures caused by comments on invalid diff lines.
 

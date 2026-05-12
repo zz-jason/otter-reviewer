@@ -31,14 +31,16 @@ sequenceDiagram
     Actions->>Runner: Schedule job with self-hosted + otter-reviewer labels
     Runner->>RepoPR: Checkout PR head
     Runner->>Action: Run zz-jason/otter-reviewer-action@v1
-    Action->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
-    Action->>App: Exchange JWT for installation access token
-    App-->>Action: Token scoped to the target repository
-    Action->>RepoPR: Fetch PR metadata and compute base...head diff
+    Action->>RepoPR: Fetch PR metadata with read-only GITHUB_TOKEN
+    Action->>Action: Refuse fork PR unless allow-fork-prs is enabled
+    Action->>RepoPR: Compute base...head diff
     Action->>Agent: Run configured review agent with prompt, diff, and schema
     Note over Agent: Codex is the validated default; other agent CLIs are configurable
     Agent-->>Action: JSON summary and candidate inline comments
     Action->>Action: Validate schema and filter to RIGHT-side diff lines
+    Action->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
+    Action->>App: Exchange JWT for installation access token
+    App-->>Action: Token scoped to the target repository
     Action->>RepoPR: POST pull request review with inline comments
     RepoPR-->>Dev: Show comments authored by Otter Reviewer app
 ```
@@ -47,7 +49,7 @@ sequenceDiagram
 
 1. Create a GitHub App named `Otter Reviewer`.
 2. Install it on the target repository.
-3. Add repository or organization secrets:
+3. Add repository or narrowly scoped organization secrets:
    - `OTTER_REVIEWER_APP_ID`
    - `OTTER_REVIEWER_PRIVATE_KEY`
    - `OTTER_REVIEWER_INSTALLATION_ID`, optional
@@ -65,7 +67,7 @@ export OTTER_REVIEWER_PRIVATE_KEY_FILE="$HOME/.config/otter-reviewer/otter-revie
 ./scripts/configure-target-repo.sh owner/repo
 ```
 
-Secrets can also live at the organization level; then use `--no-secrets` and only install the workflow in each repository.
+Secrets can also live at the organization level when the organization secret is granted only to the intended repositories; then use `--no-secrets` and only install the workflow in each repository.
 
 ## Published Action
 
@@ -81,6 +83,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: zz-jason/otter-reviewer-action@v1
@@ -113,6 +116,14 @@ The default adapter runs `codex exec` with the runner's `${CODEX_HOME:-$HOME/.co
 ```
 
 Custom agents receive the review prompt on stdin and must output JSON matching the `zz-jason/otter-reviewer-action` schema, either on stdout or at `OTTER_AGENT_OUTPUT_PATH`.
+
+## Security Defaults
+
+- Fork PRs are skipped by default in the template and refused by the action runtime, including manual dispatch.
+- Runner scripts default to ephemeral registration and remove runner registration credentials before starting the runner listener.
+- Checkout examples use `persist-credentials: false` so agent processes cannot read the workflow token from local git config.
+- GitHub App private key handling is split from agent execution: the action prepares the review first, then signs and posts after the agent has exited.
+- Organization-level App secrets should be scoped to selected repositories or split by trust domain.
 
 ## Reusable Workflow Wrapper
 

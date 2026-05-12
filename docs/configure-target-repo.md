@@ -16,7 +16,7 @@ No webhook is required for the workflow-driven setup.
 
 ## 2. Add repository or organization secrets
 
-Add these secrets to every target repo, or define them once as organization secrets and grant repo access:
+Add these secrets to every target repo, or define them as organization secrets granted only to the selected target repositories:
 
 - `OTTER_REVIEWER_APP_ID`: numeric GitHub App ID
 - `OTTER_REVIEWER_PRIVATE_KEY`: private key PEM for the app
@@ -47,7 +47,7 @@ The remote script commits `.github/workflows/otter-review.yml` to the repository
 ./scripts/configure-target-repo.sh owner/repo --no-secrets
 ```
 
-Use `--action-ref v1.0.0` or a commit SHA when a repository needs stricter action pinning.
+Use `--action-ref v1.0.2` or a commit SHA when a repository needs stricter action pinning.
 
 ## 4. Start a runner
 
@@ -109,7 +109,7 @@ The custom agent receives the prompt on stdin and must return JSON matching the 
 
 ## Multi-repository rollout pattern
 
-For many repositories, keep the same GitHub App installed at the organization/account level, expose `OTTER_REVIEWER_APP_ID` and `OTTER_REVIEWER_PRIVATE_KEY` as organization secrets, and run:
+For many repositories in the same trust domain, keep the same GitHub App installed at the organization/account level, expose `OTTER_REVIEWER_APP_ID` and `OTTER_REVIEWER_PRIVATE_KEY` as selected-repository organization secrets, and run:
 
 ```bash
 for repo in owner/repo-a owner/repo-b owner/repo-c; do
@@ -118,3 +118,5 @@ done
 ```
 
 Only override `--runs-on` when a repository needs a different runner pool, for example `["self-hosted","otter-reviewer","large"]`.
+
+Use separate GitHub Apps or separate private keys for repositories with different trust boundaries.

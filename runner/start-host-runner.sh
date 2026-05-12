@@ -5,7 +5,7 @@ GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?set target repository, for example zz-ja
 RUNNER_URL="${RUNNER_URL:-https://github.com/${GITHUB_REPOSITORY}}"
 RUNNER_NAME="${RUNNER_NAME:-otter-reviewer-host-$(hostname)}"
 RUNNER_LABELS="${RUNNER_LABELS:-otter-reviewer,host}"
-RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-false}"
+RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-true}"
 RUNNER_ROOT="${RUNNER_ROOT:-${HOME}/actions-runner-${GITHUB_REPOSITORY//\//-}-otter}"
 RUNNER_WORKDIR="${RUNNER_WORKDIR:-${RUNNER_ROOT}/_work}"
 RUNNER_CACHE_DIR="${RUNNER_CACHE_DIR:-${HOME}/.cache/otter-reviewer/actions-runner}"
@@ -21,14 +21,20 @@ need() {
 need curl
 need git
 need jq
-need codex
 
-if [[ ! -f "${CODEX_HOME}/config.toml" ]]; then
-  echo "Codex config not found at ${CODEX_HOME}/config.toml" >&2
-  exit 2
+if [[ "${REQUIRE_CODEX:-true}" == "true" ]]; then
+  need codex
+
+  if [[ ! -f "${CODEX_HOME}/config.toml" ]]; then
+    echo "Codex config not found at ${CODEX_HOME}/config.toml" >&2
+    exit 2
+  fi
 fi
 
 mkdir -p "${RUNNER_ROOT}" "${RUNNER_WORKDIR}"
+if [[ "${RUNNER_EPHEMERAL}" == "true" ]]; then
+  find "${RUNNER_WORKDIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+fi
 cd "${RUNNER_ROOT}"
 
 if [[ ! -x ./config.sh ]]; then
@@ -125,4 +131,4 @@ fi
 
 ./config.sh "${config_args[@]}"
 
-CODEX_HOME="${CODEX_HOME}" exec ./run.sh
+CODEX_HOME="${CODEX_HOME}" exec env -u GITHUB_PAT -u RUNNER_TOKEN ./run.sh
