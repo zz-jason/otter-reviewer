@@ -1,0 +1,33 @@
+name: Otter Reviewer
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  review:
+    uses: zz-jason/otter-reviewer/.github/workflows/review.yml@main
+    with:
+      runs-on: '["self-hosted","otter-reviewer"]'
+      max-inline-comments: "10"
+      post-empty-review: "true"
+      review-drafts: "false"
+      pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+    secrets:
+      OTTER_REVIEWER_APP_ID: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+      OTTER_REVIEWER_PRIVATE_KEY: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+      OTTER_REVIEWER_INSTALLATION_ID: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}

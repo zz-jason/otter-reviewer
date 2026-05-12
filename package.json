@@ -1,0 +1,17 @@
+{
+  "name": "otter-reviewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI PR review runner powered by Codex and GitHub App inline review comments.",
+  "bin": {
+    "otter-reviewer": "bin/otter-reviewer.js"
+  },
+  "scripts": {
+    "check": "node --check bin/otter-reviewer.js && node --check tests/filter.test.js",
+    "test": "node tests/filter.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

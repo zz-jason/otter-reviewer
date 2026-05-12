@@ -1,0 +1,101 @@
+name: Otter Reviewer
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: JSON array passed to runs-on, for example ["self-hosted","otter-reviewer"].
+        required: false
+        type: string
+        default: '["self-hosted","otter-reviewer"]'
+      max-inline-comments:
+        description: Maximum number of inline comments to post.
+        required: false
+        type: string
+        default: "10"
+      post-empty-review:
+        description: Post a visible review when no inline comments are produced.
+        required: false
+        type: string
+        default: "true"
+      dry-run:
+        description: Print the review payload instead of posting it.
+        required: false
+        type: string
+        default: "false"
+      codex-profile:
+        description: Optional Codex config profile.
+        required: false
+        type: string
+        default: ""
+      codex-model:
+        description: Optional Codex model override.
+        required: false
+        type: string
+        default: ""
+      review-instructions:
+        description: Optional extra review instructions.
+        required: false
+        type: string
+        default: ""
+      review-drafts:
+        description: Review draft pull requests.
+        required: false
+        type: string
+        default: "false"
+      pr_number:
+        description: Optional pull request number for workflow_dispatch callers.
+        required: false
+        type: string
+        default: ""
+    secrets:
+      OTTER_REVIEWER_APP_ID:
+        required: true
+      OTTER_REVIEWER_PRIVATE_KEY:
+        required: true
+      OTTER_REVIEWER_INSTALLATION_ID:
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: otter-reviewer-${{ inputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Otter Reviewer
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Show local tool versions
+        shell: bash
+        run: |
+          git --version
+          node --version
+          codex --version
+          test -f "${CODEX_HOME:-$HOME/.codex}/config.toml"
+
+      - name: Run Otter Reviewer
+        uses: zz-jason/otter-reviewer@main
+        with:
+          app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+          installation-id: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
+          max-inline-comments: ${{ inputs.max-inline-comments }}
+          post-empty-review: ${{ inputs.post-empty-review }}
+          dry-run: ${{ inputs.dry-run }}
+          codex-profile: ${{ inputs.codex-profile }}
+          codex-model: ${{ inputs.codex-model }}
+          review-instructions: ${{ inputs.review-instructions }}
+          review-drafts: ${{ inputs.review-drafts }}
+          pr-number: ${{ inputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number }}

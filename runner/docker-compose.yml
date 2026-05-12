@@ -1,0 +1,23 @@
+services:
+  otter-runner:
+    build:
+      context: ..
+      dockerfile: runner/Dockerfile
+      args:
+        CODEX_VERSION: ${CODEX_VERSION:-latest}
+    environment:
+      GITHUB_REPOSITORY: ${GITHUB_REPOSITORY:?set target repository, for example zz-jason/otter-review-test}
+      GITHUB_PAT: ${GITHUB_PAT:-}
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: ${RUNNER_NAME:-otter-reviewer-docker}
+      RUNNER_LABELS: ${RUNNER_LABELS:-otter-reviewer,docker}
+      RUNNER_EPHEMERAL: ${RUNNER_EPHEMERAL:-false}
+      CODEX_HOME: /home/runner/.codex
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${CODEX_CONFIG:-${HOME}/.codex/config.toml}:/home/runner/.codex/config.toml:ro
+      - otter-runner-work:/home/runner/_work
+
+volumes:
+  otter-runner-work:
