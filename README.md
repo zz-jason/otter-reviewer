@@ -1,6 +1,6 @@
 # Otter Reviewer
 
-Otter Reviewer is a self-hosted GitHub Actions PR reviewer that runs Codex and posts inline review comments through a GitHub App identity.
+Otter Reviewer is a self-hosted GitHub Actions PR reviewer that runs an agent CLI and posts inline review comments through a GitHub App identity. Codex is the end-to-end validated agent CLI today, and the runner/action boundary is intended to allow other review-capable agent CLIs to be configured later.
 
 The important identity detail is intentional: comments are posted with a GitHub App installation token, not `GITHUB_TOKEN`. If the GitHub App is named `Otter Reviewer`, GitHub shows the review as coming from Otter Reviewer instead of `github-actions[bot]`.
 
@@ -8,7 +8,7 @@ The important identity detail is intentional: comments are posted with a GitHub 
 
 - Target repositories run a thin workflow on a self-hosted runner labeled `otter-reviewer`.
 - The workflow checks out the PR head and invokes this repository's reusable workflow or composite action.
-- `bin/otter-reviewer.js` resolves the PR diff, calls `codex exec` with the runner's `CODEX_HOME/config.toml`, validates Codex JSON output, filters comments to valid RIGHT-side diff lines, and posts a pull request review.
+- `bin/otter-reviewer.js` resolves the PR diff, calls the configured review agent CLI, validates JSON output, filters comments to valid RIGHT-side diff lines, and posts a pull request review. The current implementation uses `codex exec` with the runner's `CODEX_HOME/config.toml`.
 - GitHub App credentials are supplied as secrets so the visible GitHub author is the App, not the workflow bot.
 
 ## Review Flow
@@ -17,27 +17,27 @@ The important identity detail is intentional: comments are posted with a GitHub 
 sequenceDiagram
     autonumber
     participant Dev as Developer
-    participant Target as Target Repo
+    participant PR as GitHub PR
     participant Actions as GitHub Actions
     participant Runner as Self-hosted Runner
     participant Workflow as otter-reviewer Workflow
     participant CLI as otter-reviewer CLI
     participant App as GitHub App API
-    participant Codex as Codex CLI
-    participant PR as Pull Request
+    participant Agent as Configured Agent CLI
 
-    Dev->>Target: Open, update, or manually dispatch PR review
-    Target->>Actions: Run .github/workflows/otter-review.yml
+    Dev->>PR: Open, update, or manually dispatch review
+    PR->>Actions: Run .github/workflows/otter-review.yml
     Actions->>Runner: Schedule job with self-hosted + otter-reviewer labels
     Runner->>Workflow: Checkout PR head and run reusable workflow/action
     Workflow->>CLI: node bin/otter-reviewer.js review
     CLI->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
     CLI->>App: Exchange JWT for installation access token
-    App-->>CLI: Installation token for target repository
-    CLI->>Target: Fetch PR metadata and base branch
+    App-->>CLI: Installation token for the PR repository
+    CLI->>PR: Fetch PR metadata and base branch
     CLI->>CLI: Compute merge-base and unified PR diff
-    CLI->>Codex: codex exec using runner CODEX_HOME/config.toml
-    Codex-->>CLI: JSON summary and candidate inline comments
+    CLI->>Agent: Run review agent CLI with PR diff and instructions
+    Note over Agent: Codex is the validated default option
+    Agent-->>CLI: JSON summary and candidate inline comments
     CLI->>CLI: Validate schema and filter to RIGHT-side diff lines
     CLI->>PR: POST pull request review with inline comments
     PR-->>Dev: Show comments authored by Otter Reviewer app
