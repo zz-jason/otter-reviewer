@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: "false"
+      codex-home:
+        description: CODEX_HOME directory containing config.toml.
+        required: false
+        type: string
+        default: ""
       codex-profile:
         description: Optional Codex config profile.
         required: false
@@ -38,6 +43,31 @@ on:
         required: false
         type: string
         default: ""
+      agent-command:
+        description: Optional custom review agent executable. When empty, Codex is used.
+        required: false
+        type: string
+        default: ""
+      agent-args-json:
+        description: JSON array of custom agent arguments.
+        required: false
+        type: string
+        default: "[]"
+      agent-env-pass:
+        description: Comma-separated environment variables to pass to the custom agent.
+        required: false
+        type: string
+        default: ""
+      agent-timeout-seconds:
+        description: Maximum seconds to wait for the agent CLI.
+        required: false
+        type: string
+        default: "900"
+      max-diff-bytes:
+        description: Maximum PR diff bytes to send to the agent.
+        required: false
+        type: string
+        default: "250000"
       review-drafts:
         description: Review draft pull requests.
         required: false
@@ -67,8 +97,8 @@ concurrency:
 jobs:
   review:
     name: Otter Reviewer
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    if: inputs['review-drafts'] == 'true' || github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ${{ fromJSON(inputs['runs-on']) }}
     timeout-minutes: 30
     steps:
       - name: Checkout PR head
@@ -79,23 +109,36 @@ jobs:
 
       - name: Show local tool versions
         shell: bash
+        env:
+          OTTER_AGENT_COMMAND: ${{ inputs['agent-command'] }}
+          OTTER_CODEX_HOME: ${{ inputs['codex-home'] }}
         run: |
           git --version
           node --version
-          codex --version
-          test -f "${CODEX_HOME:-$HOME/.codex}/config.toml"
+          if [[ -z "${OTTER_AGENT_COMMAND}" ]]; then
+            codex --version
+            test -f "${OTTER_CODEX_HOME:-${CODEX_HOME:-$HOME/.codex}}/config.toml"
+          else
+            command -v "${OTTER_AGENT_COMMAND}"
+          fi
 
       - name: Run Otter Reviewer
-        uses: zz-jason/otter-reviewer@main
+        uses: zz-jason/otter-reviewer-action@v1
         with:
           app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
           private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
           installation-id: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
-          max-inline-comments: ${{ inputs.max-inline-comments }}
-          post-empty-review: ${{ inputs.post-empty-review }}
-          dry-run: ${{ inputs.dry-run }}
-          codex-profile: ${{ inputs.codex-profile }}
-          codex-model: ${{ inputs.codex-model }}
-          review-instructions: ${{ inputs.review-instructions }}
-          review-drafts: ${{ inputs.review-drafts }}
+          max-inline-comments: ${{ inputs['max-inline-comments'] }}
+          post-empty-review: ${{ inputs['post-empty-review'] }}
+          dry-run: ${{ inputs['dry-run'] }}
+          codex-home: ${{ inputs['codex-home'] }}
+          codex-profile: ${{ inputs['codex-profile'] }}
+          codex-model: ${{ inputs['codex-model'] }}
+          review-instructions: ${{ inputs['review-instructions'] }}
+          agent-command: ${{ inputs['agent-command'] }}
+          agent-args-json: ${{ inputs['agent-args-json'] }}
+          agent-env-pass: ${{ inputs['agent-env-pass'] }}
+          agent-timeout-seconds: ${{ inputs['agent-timeout-seconds'] }}
+          max-diff-bytes: ${{ inputs['max-diff-bytes'] }}
+          review-drafts: ${{ inputs['review-drafts'] }}
           pr-number: ${{ inputs.pr_number || github.event.pull_request.number || github.event.inputs.pr_number }}

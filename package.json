@@ -2,13 +2,10 @@
   "name": "otter-reviewer",
   "version": "0.1.0",
   "private": true,
-  "description": "AI PR review runner powered by Codex and GitHub App inline review comments.",
-  "bin": {
-    "otter-reviewer": "bin/otter-reviewer.js"
-  },
+  "description": "Setup docs and runner scripts for Otter Reviewer.",
   "scripts": {
-    "check": "node --check bin/otter-reviewer.js && node --check tests/filter.test.js",
-    "test": "node tests/filter.test.js"
+    "check": "node --check scripts/start-app-manifest-registration.js && bash -n runner/entrypoint.sh runner/start-host-runner.sh scripts/install-app-secrets-from-manifest-code.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh",
+    "test": "npm run check"
   },
   "engines": {
     "node": ">=18"

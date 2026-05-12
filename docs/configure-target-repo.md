@@ -29,7 +29,7 @@ The private key can be stored as multi-line PEM text. Escaped `\n` text and base
 Copy `templates/otter-review.yml` into the target repo at `.github/workflows/otter-review.yml`, or run:
 
 ```bash
-./scripts/install-target-workflow.sh /path/to/target/repo main '["self-hosted","otter-reviewer"]'
+./scripts/install-target-workflow.sh /path/to/target/repo v1 '["self-hosted","otter-reviewer"]'
 ```
 
 For a repository that is not cloned locally, run:
@@ -41,21 +41,21 @@ export OTTER_REVIEWER_PRIVATE_KEY_FILE="$HOME/Downloads/otter-reviewer.private-k
 ./scripts/configure-target-repo.sh owner/repo
 ```
 
-The remote script commits `.github/workflows/otter-review.yml` to the repository default branch and sets any GitHub App secrets provided through the environment. If app secrets are already configured as organization secrets, use:
+The remote script commits `.github/workflows/otter-review.yml` to the repository default branch and sets any GitHub App secrets provided through the environment. It installs a workflow that calls `zz-jason/otter-reviewer-action@v1` by default. If app secrets are already configured as organization secrets, use:
 
 ```bash
 ./scripts/configure-target-repo.sh owner/repo --no-secrets
 ```
 
-For private `otter-reviewer` repositories, make sure GitHub Actions in target repositories can access this repository as a reusable workflow/action. If that is not available in your GitHub plan or account layout, copy `bin/`, `schema/`, and `action.yml` into the target repo and change the workflow step to `uses: ./`.
+Use `--action-ref v1.0.0` or a commit SHA when a repository needs stricter action pinning.
 
 ## 4. Start a runner
 
 The runner must have:
 
-- `codex` on `PATH`
 - `git`, `node`, and `jq`
-- `~/.codex/config.toml` available through `CODEX_HOME`
+- `codex` on `PATH` and `~/.codex/config.toml` available through `CODEX_HOME` when using the default Codex adapter
+- any custom agent CLI and credentials required by that repository when using `agent-command`
 - labels matching the target workflow, by default `self-hosted` and `otter-reviewer`
 
 Host runner:
@@ -85,7 +85,27 @@ docker compose -f runner/docker-compose.yml up --build
 
 ## 5. Optional repo-specific review instructions
 
-Create `.otter-reviewer.md` in a target repository to add project-specific review guidance. The contents are appended to the Codex prompt for that repository only.
+Create `.otter-reviewer.md` in a target repository to add project-specific review guidance. The contents are appended to the agent prompt for that repository only.
+
+## 6. Optional custom agent CLI
+
+Codex is the default adapter. To use another agent, edit the `Run Otter Reviewer` step in `.github/workflows/otter-review.yml`:
+
+```yaml
+      - name: Run Otter Reviewer
+        uses: zz-jason/otter-reviewer-action@v1
+        with:
+          app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+          pr-number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          agent-command: my-review-agent
+          agent-args-json: '["review", "--schema", "{schemaPath}", "--output", "{outputPath}"]'
+          agent-env-pass: MY_AGENT_API_KEY
+        env:
+          MY_AGENT_API_KEY: ${{ secrets.MY_AGENT_API_KEY }}
+```
+
+The custom agent receives the prompt on stdin and must return JSON matching the action schema.
 
 ## Multi-repository rollout pattern
 

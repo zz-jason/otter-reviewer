@@ -18,16 +18,30 @@ permissions:
   contents: read
   pull-requests: read
 
+concurrency:
+  group: otter-reviewer-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   review:
-    uses: zz-jason/otter-reviewer/.github/workflows/review.yml@main
-    with:
-      runs-on: '["self-hosted","otter-reviewer"]'
-      max-inline-comments: "10"
-      post-empty-review: "true"
-      review-drafts: "false"
-      pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-    secrets:
-      OTTER_REVIEWER_APP_ID: ${{ secrets.OTTER_REVIEWER_APP_ID }}
-      OTTER_REVIEWER_PRIVATE_KEY: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
-      OTTER_REVIEWER_INSTALLATION_ID: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
+    name: Otter Reviewer
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ fromJSON('["self-hosted","otter-reviewer"]') }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Run Otter Reviewer
+        uses: zz-jason/otter-reviewer-action@v1
+        with:
+          app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+          installation-id: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
+          max-inline-comments: "10"
+          post-empty-review: "true"
+          review-drafts: "false"
+          pr-number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}

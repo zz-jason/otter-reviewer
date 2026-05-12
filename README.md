@@ -1,15 +1,17 @@
 # Otter Reviewer
 
-Otter Reviewer is a self-hosted GitHub Actions PR reviewer that runs an agent CLI and posts inline review comments through a GitHub App identity. Codex is the end-to-end validated agent CLI today, and the runner/action boundary is intended to allow other review-capable agent CLIs to be configured later.
+Otter Reviewer is a self-hosted GitHub Actions PR reviewer. It runs a configurable agent CLI on your runner, converts the agent output into inline pull request review comments, and posts those comments through a GitHub App identity.
 
-The important identity detail is intentional: comments are posted with a GitHub App installation token, not `GITHUB_TOKEN`. If the GitHub App is named `Otter Reviewer`, GitHub shows the review as coming from Otter Reviewer instead of `github-actions[bot]`.
+The publishable Marketplace action lives in `zz-jason/otter-reviewer-action`. This repository keeps the product docs, GitHub App setup helpers, target-repository templates, reusable workflow wrapper, and runner scripts.
+
+Codex is the end-to-end validated default agent. Other review-capable CLIs can be used by configuring `agent-command`, `agent-args-json`, and `agent-env-pass`.
 
 ## Architecture
 
 - Target repositories run a thin workflow on a self-hosted runner labeled `otter-reviewer`.
-- The workflow checks out the PR head and invokes this repository's reusable workflow or composite action.
-- `bin/otter-reviewer.js` resolves the PR diff, calls the configured review agent CLI, validates JSON output, filters comments to valid RIGHT-side diff lines, and posts a pull request review. The current implementation uses `codex exec` with the runner's `CODEX_HOME/config.toml`.
-- GitHub App credentials are supplied as secrets so the visible GitHub author is the App, not the workflow bot.
+- The workflow checks out the PR head and invokes `zz-jason/otter-reviewer-action@v1`.
+- The action resolves the PR diff, calls the configured review agent CLI, validates JSON output, filters comments to valid RIGHT-side diff lines, and posts a pull request review.
+- GitHub App credentials are supplied as secrets so the visible GitHub author is the App, not `github-actions[bot]`.
 
 ## Review Flow
 
@@ -17,73 +19,104 @@ The important identity detail is intentional: comments are posted with a GitHub 
 sequenceDiagram
     autonumber
     participant Dev as Developer
-    participant PR as GitHub PR
+    participant RepoPR as Target Repository / Pull Request
     participant Actions as GitHub Actions
     participant Runner as Self-hosted Runner
-    participant Workflow as otter-reviewer Workflow
-    participant CLI as otter-reviewer CLI
+    participant Action as otter-reviewer-action
     participant App as GitHub App API
     participant Agent as Configured Agent CLI
 
-    Dev->>PR: Open, update, or manually dispatch review
-    PR->>Actions: Run .github/workflows/otter-review.yml
+    Dev->>RepoPR: Open, update, or manually dispatch review
+    RepoPR->>Actions: Run .github/workflows/otter-review.yml
     Actions->>Runner: Schedule job with self-hosted + otter-reviewer labels
-    Runner->>Workflow: Checkout PR head and run reusable workflow/action
-    Workflow->>CLI: node bin/otter-reviewer.js review
-    CLI->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
-    CLI->>App: Exchange JWT for installation access token
-    App-->>CLI: Installation token for the PR repository
-    CLI->>PR: Fetch PR metadata and base branch
-    CLI->>CLI: Compute merge-base and unified PR diff
-    CLI->>Agent: Run review agent CLI with PR diff and instructions
-    Note over Agent: Codex is the validated default option
-    Agent-->>CLI: JSON summary and candidate inline comments
-    CLI->>CLI: Validate schema and filter to RIGHT-side diff lines
-    CLI->>PR: POST pull request review with inline comments
-    PR-->>Dev: Show comments authored by Otter Reviewer app
+    Runner->>RepoPR: Checkout PR head
+    Runner->>Action: Run zz-jason/otter-reviewer-action@v1
+    Action->>App: Sign GitHub App JWT with OTTER_REVIEWER_PRIVATE_KEY
+    Action->>App: Exchange JWT for installation access token
+    App-->>Action: Token scoped to the target repository
+    Action->>RepoPR: Fetch PR metadata and compute base...head diff
+    Action->>Agent: Run configured review agent with prompt, diff, and schema
+    Note over Agent: Codex is the validated default; other agent CLIs are configurable
+    Agent-->>Action: JSON summary and candidate inline comments
+    Action->>Action: Validate schema and filter to RIGHT-side diff lines
+    Action->>RepoPR: POST pull request review with inline comments
+    RepoPR-->>Dev: Show comments authored by Otter Reviewer app
 ```
 
 ## Target Repository Setup
 
 1. Create a GitHub App named `Otter Reviewer`.
 2. Install it on the target repository.
-3. Add these secrets to the target repository or organization:
+3. Add repository or organization secrets:
    - `OTTER_REVIEWER_APP_ID`
    - `OTTER_REVIEWER_PRIVATE_KEY`
    - `OTTER_REVIEWER_INSTALLATION_ID`, optional
 4. Copy `templates/otter-review.yml` to `.github/workflows/otter-review.yml` in the target repository.
-5. Start a self-hosted runner with the `otter-reviewer` label.
+5. Start a self-hosted runner with the `otter-reviewer` label and the agent CLI you want to use.
 
 See `docs/github-app.md` and `docs/github-app-manifest.json` for app creation details, and `docs/configure-target-repo.md` for the full repository setup.
 
-For a remote repository, the workflow install can be one command:
+For a remote repository, install the workflow and secrets with:
 
 ```bash
 export OTTER_REVIEWER_APP_ID="123456"
-export OTTER_REVIEWER_PRIVATE_KEY_FILE="$HOME/Downloads/otter-reviewer.private-key.pem"
+export OTTER_REVIEWER_PRIVATE_KEY_FILE="$HOME/.config/otter-reviewer/otter-reviewer.private-key.pem"
 
 ./scripts/configure-target-repo.sh owner/repo
 ```
 
 Secrets can also live at the organization level; then use `--no-secrets` and only install the workflow in each repository.
 
-## Reusable Workflow
+## Published Action
 
-Target repositories can use:
+Target repositories can call the Marketplace action directly:
 
 ```yaml
 jobs:
   review:
-    uses: zz-jason/otter-reviewer/.github/workflows/review.yml@main
-    with:
-      runs-on: '["self-hosted","otter-reviewer"]'
-      max-inline-comments: "10"
-      pr_number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
-    secrets:
-      OTTER_REVIEWER_APP_ID: ${{ secrets.OTTER_REVIEWER_APP_ID }}
-      OTTER_REVIEWER_PRIVATE_KEY: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
-      OTTER_REVIEWER_INSTALLATION_ID: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, otter-reviewer]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: zz-jason/otter-reviewer-action@v1
+        with:
+          app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+          private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+          installation-id: ${{ secrets.OTTER_REVIEWER_INSTALLATION_ID }}
+          max-inline-comments: "10"
+          post-empty-review: "true"
+          pr-number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
 ```
+
+For stricter supply-chain pinning, use a full release tag or commit SHA instead of `@v1`.
+
+## Custom Agent CLI
+
+The default adapter runs `codex exec` with the runner's `${CODEX_HOME:-$HOME/.codex}/config.toml`. A repository can use another agent CLI by passing an executable, JSON arguments, and any required credential environment variables:
+
+```yaml
+- uses: zz-jason/otter-reviewer-action@v1
+  with:
+    app-id: ${{ secrets.OTTER_REVIEWER_APP_ID }}
+    private-key: ${{ secrets.OTTER_REVIEWER_PRIVATE_KEY }}
+    pr-number: ${{ github.event.pull_request.number }}
+    agent-command: my-review-agent
+    agent-args-json: '["review", "--schema", "{schemaPath}", "--output", "{outputPath}"]'
+    agent-env-pass: MY_AGENT_API_KEY
+  env:
+    MY_AGENT_API_KEY: ${{ secrets.MY_AGENT_API_KEY }}
+```
+
+Custom agents receive the review prompt on stdin and must output JSON matching the `zz-jason/otter-reviewer-action` schema, either on stdout or at `OTTER_AGENT_OUTPUT_PATH`.
+
+## Reusable Workflow Wrapper
+
+This repository also exposes `.github/workflows/review.yml` as a wrapper around `zz-jason/otter-reviewer-action@v1`. It is useful when you want centralized defaults, but direct action usage is the recommended path for Marketplace consumers.
 
 ## Runner
 
@@ -119,5 +152,5 @@ npm test
 npm run check
 bash -n runner/entrypoint.sh runner/start-host-runner.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh
 scripts/install-app-secrets-from-manifest-code.sh --help
-docker compose -f runner/docker-compose.yml config
+GITHUB_REPOSITORY=owner/repo GITHUB_PAT=dummy docker compose -f runner/docker-compose.yml config
 ```

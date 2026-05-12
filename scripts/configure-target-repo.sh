@@ -7,7 +7,7 @@ Usage:
   scripts/configure-target-repo.sh owner/repo [options]
 
 Options:
-  --reviewer-ref REF      otter-reviewer ref to use, default: main
+  --action-ref REF        otter-reviewer-action ref to use, default: v1
   --runs-on JSON          runs-on JSON array, default: ["self-hosted","otter-reviewer"]
   --branch BRANCH         target branch, default: repository default branch
   --no-secrets            do not set GitHub App secrets
@@ -34,15 +34,19 @@ if [[ -z "${repo}" || "${repo}" == -* ]]; then
 fi
 shift
 
-reviewer_ref="main"
+action_ref="v1"
 runs_on='["self-hosted","otter-reviewer"]'
 branch=""
 set_secrets="true"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --action-ref)
+      action_ref="${2:?missing value for --action-ref}"
+      shift 2
+      ;;
     --reviewer-ref)
-      reviewer_ref="${2:?missing value for --reviewer-ref}"
+      action_ref="${2:?missing value for --reviewer-ref}"
       shift 2
       ;;
     --runs-on)
@@ -87,8 +91,8 @@ tmp_workflow="$(mktemp)"
 trap 'rm -f "${tmp_workflow}"' EXIT
 
 sed \
-  -e "s|zz-jason/otter-reviewer/.github/workflows/review.yml@main|zz-jason/otter-reviewer/.github/workflows/review.yml@${reviewer_ref}|g" \
-  -e "s|runs-on: '\\[\"self-hosted\",\"otter-reviewer\"\\]'|runs-on: '${runs_on}'|g" \
+  -e "s|zz-jason/otter-reviewer-action@v1|zz-jason/otter-reviewer-action@${action_ref}|g" \
+  -e "s|fromJSON('\\[\"self-hosted\",\"otter-reviewer\"\\]')|fromJSON('${runs_on}')|g" \
   "${source_template}" > "${tmp_workflow}"
 
 if [[ -z "${branch}" ]]; then
