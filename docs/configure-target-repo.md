@@ -62,7 +62,9 @@ Host runner:
 
 ```bash
 export GITHUB_REPOSITORY=owner/repo
-export GITHUB_PAT="$(gh auth token)"
+export RUNNER_GITHUB_APP_ID=123456
+export RUNNER_GITHUB_APP_INSTALLATION_ID=987654
+export RUNNER_GITHUB_APP_PRIVATE_KEY_FILE=/etc/otter-reviewer/runner-registrar.private-key.pem
 export CODEX_HOME="$HOME/.codex"
 export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"
 export RUNNER_EPHEMERAL=true
@@ -70,11 +72,15 @@ export RUNNER_EPHEMERAL=true
 ./runner/start-host-runner.sh
 ```
 
+Use a separate runner registrar GitHub App for this credential path. For repo-scoped runners, grant repository `Administration: read and write` only to selected repositories. For org-scoped runners, set `RUNNER_SCOPE=org` and `GITHUB_ORG=owner`, and grant organization `Self-hosted runners: read and write`.
+
 Docker runner:
 
 ```bash
 export GITHUB_REPOSITORY=owner/repo
-export GITHUB_PAT="$(gh auth token)"
+export RUNNER_GITHUB_APP_ID=123456
+export RUNNER_GITHUB_APP_INSTALLATION_ID=987654
+export RUNNER_GITHUB_APP_PRIVATE_KEY="$(cat /etc/otter-reviewer/runner-registrar.private-key.pem)"
 export CODEX_CONFIG="$HOME/.codex/config.toml"
 export CODEX_VERSION="$(codex --version | awk '{print $2}')"
 export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"

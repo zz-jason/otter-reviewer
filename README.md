@@ -121,6 +121,7 @@ Custom agents receive the review prompt on stdin and must output JSON matching t
 
 - Fork PRs are skipped by default in the template and refused by the action runtime, including manual dispatch.
 - Runner scripts default to ephemeral registration and remove runner registration credentials before starting the runner listener.
+- Production runner registration should use a dedicated GitHub App installation token, not a human user's `gh` login or PAT.
 - Checkout examples use `persist-credentials: false` so agent processes cannot read the workflow token from local git config.
 - GitHub App private key handling is split from agent execution: the action prepares the review first, then signs and posts after the agent has exited.
 - Organization-level App secrets should be scoped to selected repositories or split by trust domain.
@@ -135,7 +136,9 @@ Host runner:
 
 ```bash
 export GITHUB_REPOSITORY=owner/repo
-export GITHUB_PAT="$(gh auth token)"
+export RUNNER_GITHUB_APP_ID=123456
+export RUNNER_GITHUB_APP_INSTALLATION_ID=987654
+export RUNNER_GITHUB_APP_PRIVATE_KEY_FILE=/etc/otter-reviewer/runner-registrar.private-key.pem
 export CODEX_HOME="$HOME/.codex"
 export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"
 export RUNNER_EPHEMERAL=true
@@ -143,11 +146,15 @@ export RUNNER_EPHEMERAL=true
 ./runner/start-host-runner.sh
 ```
 
+For repo-scoped runners, the runner registrar GitHub App needs repository `Administration: read and write` on selected repositories so it can mint short-lived runner registration and removal tokens. For org-scoped runners, set `RUNNER_SCOPE=org` and `GITHUB_ORG=owner`, and use a registrar GitHub App with organization `Self-hosted runners: read and write`.
+
 Docker runner:
 
 ```bash
 export GITHUB_REPOSITORY=owner/repo
-export GITHUB_PAT="$(gh auth token)"
+export RUNNER_GITHUB_APP_ID=123456
+export RUNNER_GITHUB_APP_INSTALLATION_ID=987654
+export RUNNER_GITHUB_APP_PRIVATE_KEY="$(cat /etc/otter-reviewer/runner-registrar.private-key.pem)"
 export CODEX_CONFIG="$HOME/.codex/config.toml"
 export CODEX_VERSION="$(codex --version | awk '{print $2}')"
 export RUNNER_CACHE_DIR="$HOME/.cache/otter-reviewer/actions-runner"
@@ -163,5 +170,5 @@ npm test
 npm run check
 bash -n runner/entrypoint.sh runner/start-host-runner.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh
 scripts/install-app-secrets-from-manifest-code.sh --help
-GITHUB_REPOSITORY=owner/repo GITHUB_PAT=dummy docker compose -f runner/docker-compose.yml config
+GITHUB_REPOSITORY=owner/repo RUNNER_TOKEN=dummy docker compose -f runner/docker-compose.yml config
 ```

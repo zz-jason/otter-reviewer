@@ -3,17 +3,35 @@ set -euo pipefail
 
 RUNNER_HOME="${RUNNER_HOME:-/home/runner/actions-runner}"
 RUNNER_WORKDIR="${RUNNER_WORKDIR:-/home/runner/_work}"
-RUNNER_URL="${RUNNER_URL:-https://github.com/${GITHUB_REPOSITORY:-}}"
+RUNNER_SCOPE="${RUNNER_SCOPE:-repo}"
+case "${RUNNER_SCOPE}" in
+  repo)
+    if [[ -z "${GITHUB_REPOSITORY:-}" ]]; then
+      echo "GITHUB_REPOSITORY is required for repo-scoped runner registration" >&2
+      exit 2
+    fi
+    RUNNER_URL="${RUNNER_URL:-https://github.com/${GITHUB_REPOSITORY}}"
+    ;;
+  org)
+    if [[ -z "${GITHUB_ORG:-}" ]]; then
+      echo "GITHUB_ORG is required for org-scoped runner registration" >&2
+      exit 2
+    fi
+    RUNNER_URL="${RUNNER_URL:-https://github.com/${GITHUB_ORG}}"
+    ;;
+  *)
+    echo "Unsupported RUNNER_SCOPE=${RUNNER_SCOPE}. Use repo or org." >&2
+    exit 2
+    ;;
+esac
 RUNNER_NAME="${RUNNER_NAME:-otter-reviewer-$(hostname)}"
 RUNNER_LABELS="${RUNNER_LABELS:-otter-reviewer,docker}"
 RUNNER_EPHEMERAL="${RUNNER_EPHEMERAL:-true}"
 RUNNER_CACHE_DIR="${RUNNER_CACHE_DIR:-/home/runner/.cache/otter-reviewer/actions-runner}"
 CODEX_HOME="${CODEX_HOME:-/home/runner/.codex}"
 
-if [[ -z "${GITHUB_REPOSITORY:-}" && -z "${RUNNER_URL:-}" ]]; then
-  echo "GITHUB_REPOSITORY or RUNNER_URL is required" >&2
-  exit 2
-fi
+# shellcheck source=runner/lib/runner-token.sh
+source /usr/local/lib/otter-reviewer/runner-token.sh
 
 if [[ "${REQUIRE_CODEX:-true}" == "true" ]]; then
   if [[ ! -f "${CODEX_HOME}/config.toml" ]]; then
@@ -57,37 +75,11 @@ else
 fi
 
 get_runner_token() {
-  if [[ -n "${RUNNER_TOKEN:-}" ]]; then
-    printf '%s\n' "${RUNNER_TOKEN}"
-    return 0
-  fi
-
-  if [[ -n "${GITHUB_PAT:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-    curl -fsSL \
-      -X POST \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${GITHUB_PAT}" \
-      "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners/registration-token" \
-      | jq -r '.token'
-    return 0
-  fi
-
-  echo "RUNNER_TOKEN or GITHUB_PAT is required to register the runner" >&2
-  return 2
+  otter_runner_token registration
 }
 
 get_remove_token() {
-  if [[ -n "${GITHUB_PAT:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-    curl -fsSL \
-      -X POST \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${GITHUB_PAT}" \
-      "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners/remove-token" \
-      | jq -r '.token'
-    return 0
-  fi
-
-  printf '%s\n' "${RUNNER_TOKEN:-}"
+  otter_runner_token remove
 }
 
 cleanup() {
@@ -122,4 +114,11 @@ fi
 
 ./config.sh "${config_args[@]}"
 
-exec env -u GITHUB_PAT -u RUNNER_TOKEN ./run.sh
+env \
+  -u GITHUB_PAT \
+  -u RUNNER_TOKEN \
+  -u RUNNER_GITHUB_APP_ID \
+  -u RUNNER_GITHUB_APP_INSTALLATION_ID \
+  -u RUNNER_GITHUB_APP_PRIVATE_KEY \
+  -u RUNNER_GITHUB_APP_PRIVATE_KEY_FILE \
+  ./run.sh

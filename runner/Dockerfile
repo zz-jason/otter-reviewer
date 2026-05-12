@@ -26,6 +26,7 @@ RUN useradd --create-home --shell /bin/bash runner \
     && chown -R runner:runner /home/runner
 
 COPY runner/entrypoint.sh /usr/local/bin/otter-runner-entrypoint
+COPY runner/lib/runner-token.sh /usr/local/lib/otter-reviewer/runner-token.sh
 RUN chmod +x /usr/local/bin/otter-runner-entrypoint
 
 USER runner

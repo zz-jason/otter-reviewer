@@ -4,7 +4,7 @@
   "private": true,
   "description": "Setup docs and runner scripts for Otter Reviewer.",
   "scripts": {
-    "check": "node --check scripts/start-app-manifest-registration.js && bash -n runner/entrypoint.sh runner/start-host-runner.sh scripts/install-app-secrets-from-manifest-code.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh",
+    "check": "node --check scripts/start-app-manifest-registration.js && bash -n runner/lib/runner-token.sh runner/entrypoint.sh runner/start-host-runner.sh scripts/install-app-secrets-from-manifest-code.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh",
     "test": "npm run check"
   },
   "engines": {
