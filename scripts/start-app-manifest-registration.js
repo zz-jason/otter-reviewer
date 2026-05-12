@@ -12,6 +12,9 @@ const repo = process.argv[2] || "zz-jason/otter-review-test";
 const account = process.argv[3] || "";
 const [owner] = repo.split("/");
 const appOwner = account || owner;
+const publicHost = process.env.OTTER_REGISTRATION_HOST || "127.0.0.1";
+const bindHost = process.env.OTTER_REGISTRATION_BIND || publicHost;
+const requestedPort = Number(process.env.OTTER_REGISTRATION_PORT || "0");
 const state = crypto.randomBytes(18).toString("hex");
 const privateKeyPath = path.join(os.homedir(), ".config", "otter-reviewer", "otter-reviewer.private-key.pem");
 
@@ -164,9 +167,9 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(0, "127.0.0.1", () => {
+server.listen(requestedPort, bindHost, () => {
   const { port } = server.address();
-  const url = `http://127.0.0.1:${port}/`;
+  const url = `http://${publicHost}:${port}/`;
   console.log(`Open this URL in your browser to register Otter Reviewer:`);
   console.log(url);
   console.log(`\nWaiting for GitHub callback...`);
