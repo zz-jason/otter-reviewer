@@ -47,6 +47,14 @@ function html(title, body) {
 </html>`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function formPage(baseUrl) {
   const manifest = {
     name: "Otter Reviewer",
@@ -77,7 +85,7 @@ function formPage(baseUrl) {
     `<h1>Register Otter Reviewer</h1>
     <p>This page will create a GitHub App manifest for <code>${repo}</code>.</p>
     <form method="post" action="${action}">
-      <input type="hidden" name="manifest" value="${encodeURIComponent(JSON.stringify(manifest)).replace(/"/g, "&quot;")}">
+      <input type="hidden" name="manifest" value="${escapeHtml(JSON.stringify(manifest))}">
       <button type="submit">Open GitHub App Registration</button>
     </form>
     <p class="muted">After GitHub creates the app, this local server will receive the one-time manifest code and install repo secrets.</p>`
