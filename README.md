@@ -84,5 +84,6 @@ docker compose -f runner/docker-compose.yml up --build
 npm test
 npm run check
 bash -n runner/entrypoint.sh runner/start-host-runner.sh scripts/install-target-workflow.sh scripts/configure-target-repo.sh
+scripts/install-app-secrets-from-manifest-code.sh --help
 docker compose -f runner/docker-compose.yml config
 ```
